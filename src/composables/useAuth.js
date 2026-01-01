@@ -6,12 +6,7 @@ const token = ref(localStorage.getItem('admin_token') || null)
 const user = ref(JSON.parse(localStorage.getItem('admin_user') || 'null'))
 
 // Base API configuration
-// Base API configuration
-// In development, we use the proxy '/api' to avoid CORS with localhost.
-// In production, we hit the Render backend directly.
-const baseURL = import.meta.env.DEV 
-  ? '/api/v1' 
-  : 'https://laysapi-uyjc.onrender.com/api/v1'
+const baseURL = '/api/v1'
 
 const api = axios.create({
   baseURL,
@@ -82,7 +77,17 @@ export function useAuth() {
       router.push('/admin/dashboard')
     } catch (err) {
       console.error('Login error:', err)
-      error.value = err.response?.data?.message || err.message || 'Login failed'
+      let errorMsg = 'Login failed'
+      if (err.response) {
+        errorMsg = `${err.response.status}: ${err.response.data?.message || err.response.statusText}`
+        console.error('Response error:', err.response)
+      } else if (err.request) {
+        errorMsg = 'Network Error: No response received (Possible CORS or Backend Down)'
+        console.error('Network error - no response')
+      } else {
+        errorMsg = err.message
+      }
+      error.value = errorMsg
     } finally {
       isLoading.value = false
     }
