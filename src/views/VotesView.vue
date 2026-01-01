@@ -77,12 +77,12 @@ onMounted(fetchVotes)
               <td>{{ new Date(vote.createdAt).toLocaleDateString() }} {{ new Date(vote.createdAt).toLocaleTimeString() }}</td>
               <td>
                 <div class="voter-info">
-                   <span class="voter-name">{{ vote.user?.firstName }} {{ vote.user?.lastName }}</span>
-                   <span class="voter-email">{{ vote.user?.email }}</span>
+                   <span class="voter-name">{{ vote.user?.firstName }} {{ vote.user?.lastName || '' }}</span>
+                   <span class="voter-email">{{ vote.user?.email || 'No Email' }}</span>
                 </div>
               </td>
               <td class="bag-id">{{ vote.bag?._id || 'Unknown' }}</td>
-              <td>{{ vote.bag?.flavor || 'N/A' }}</td>
+              <td>{{ vote.bag?.name || vote.bag?.flavor || 'N/A' }}</td>
             </tr>
             <tr v-if="votes.length === 0">
               <td colspan="4" class="empty-state">No votes recorded yet.</td>

@@ -7,7 +7,7 @@ const user = ref(JSON.parse(localStorage.getItem('admin_user') || 'null'))
 
 // Base API configuration
 const api = axios.create({
-  baseURL: 'https://laysapi-uyjc.onrender.com/api/v1',
+  baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json'
   }

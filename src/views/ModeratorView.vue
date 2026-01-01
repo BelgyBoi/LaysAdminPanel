@@ -68,15 +68,27 @@ onMounted(fetchBags)
           <div class="bag-image-placeholder">
              <!-- If the API returns an image URL, we'd use it here. 
                   For now using a stylized placeholder or checking user structure -->
-             <div class="bag-preview" :style="{ backgroundColor: bag.color || '#F2C400' }">
-                <span class="preview-text">{{ bag.flavor }}</span>
+             <div class="bag-preview-container">
+               <img 
+                 v-if="bag.image" 
+                 :src="bag.image" 
+                 :alt="bag.name" 
+                 class="bag-image"
+               />
+               <div 
+                 v-else 
+                 class="bag-preview" 
+                 :style="{ backgroundColor: bag.color || '#F2C400' }"
+               >
+                  <span class="preview-text">{{ bag.name || bag.flavor }}</span>
+               </div>
              </div>
           </div>
           
           <div class="bag-info">
-            <h3>{{ bag.flavor || 'Untitled Flavor' }}</h3>
+            <h3>{{ bag.name || bag.flavor || 'Untitled Flavor' }}</h3>
             <div class="meta">
-              <span>By: {{ bag.user?.firstName || 'Anonymous' }}</span>
+              <span>By: {{ bag.user?.firstName || (typeof bag.user === 'string' ? 'User #' + bag.user.slice(-4) : 'Anonymous') }}</span>
               <span class="date">{{ new Date(bag.createdAt).toLocaleDateString() }}</span>
             </div>
             
@@ -164,6 +176,21 @@ onMounted(fetchBags)
   font-weight: 800;
   font-size: 0.9rem;
   text-transform: uppercase;
+}
+
+.bag-preview-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bag-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* ensure user sees whole bag even if small aspect ratio diff */
+  padding: 1rem;
 }
 
 .bag-info {
