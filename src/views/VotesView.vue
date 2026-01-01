@@ -68,6 +68,7 @@ onMounted(fetchVotes)
             <tr>
               <th>Date</th>
               <th>Voter</th>
+              <th>Preview</th>
               <th>Voted For (Bag ID)</th>
               <th>Bag Flavor</th>
             </tr>
@@ -80,6 +81,15 @@ onMounted(fetchVotes)
                    <span class="voter-name">{{ vote.user?.firstName }} {{ vote.user?.lastName || '' }}</span>
                    <span class="voter-email">{{ vote.user?.email || 'No Email' }}</span>
                 </div>
+              </td>
+              <td>
+                <img 
+                  v-if="vote.bag?.snapshot || vote.bag?.image" 
+                  :src="vote.bag.snapshot || vote.bag.image" 
+                  class="vote-thumbnail" 
+                  alt="Snapshot"
+                />
+                <div v-else class="thumbnail-placeholder" :style="{ backgroundColor: vote.bag?.color || '#333' }"></div>
               </td>
               <td class="bag-id">{{ vote.bag?._id || 'Unknown' }}</td>
               <td>{{ vote.bag?.name || vote.bag?.flavor || 'N/A' }}</td>
@@ -173,6 +183,20 @@ tr:hover td {
 .voter-email {
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.vote-thumbnail {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.thumbnail-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
 }
 
 .bag-id {

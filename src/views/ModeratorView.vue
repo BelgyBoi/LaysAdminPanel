@@ -23,8 +23,6 @@ const fetchBags = async () => {
 }
 
 const deleteBag = async (id) => {
-  if (!confirm('Are you sure you want to delete this bag? This cannot be undone.')) return
-
   deletingId.value = id
   try {
     await api.delete(`/admin/bag/${id}`)
@@ -70,9 +68,9 @@ onMounted(fetchBags)
                   For now using a stylized placeholder or checking user structure -->
              <div class="bag-preview-container">
                <img 
-                 v-if="bag.image" 
-                 :src="bag.image" 
-                 :alt="bag.name" 
+                 v-if="bag.snapshot || bag.image" 
+                 :src="bag.snapshot || bag.image" 
+                 :alt="bag.name || bag.flavor" 
                  class="bag-image"
                />
                <div 

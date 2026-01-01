@@ -6,8 +6,15 @@ const token = ref(localStorage.getItem('admin_token') || null)
 const user = ref(JSON.parse(localStorage.getItem('admin_user') || 'null'))
 
 // Base API configuration
+// Base API configuration
+// In development, we use the proxy '/api' to avoid CORS with localhost.
+// In production, we hit the Render backend directly.
+const baseURL = import.meta.env.DEV 
+  ? '/api/v1' 
+  : 'https://laysapi-uyjc.onrender.com/api/v1'
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL,
   headers: {
     'Content-Type': 'application/json'
   }
