@@ -5,6 +5,7 @@ import AdminHeader from '../components/AdminHeader.vue'
 
 const { api } = useAuth()
 const bags = ref([])
+const searchQuery = ref('')
 const isLoading = ref(true)
 const error = ref(null)
 const deletingId = ref(null)
@@ -12,7 +13,8 @@ const deletingId = ref(null)
 const fetchBags = async () => {
   isLoading.value = true
   try {
-    const response = await api.get('/admin/bag')
+    // SWITCH: Using default endpoint to get populated user data & inspiration
+    const response = await api.get('/default/bag')
     bags.value = response.data
   } catch (err) {
     console.error('Failed to fetch bags:', err)
@@ -21,6 +23,35 @@ const fetchBags = async () => {
     isLoading.value = false
   }
 }
+
+// Search Logic
+import { computed } from 'vue'
+const filteredBags = computed(() => {
+  if (!searchQuery.value) return bags.value
+  
+  const query = searchQuery.value.toLowerCase()
+  return bags.value.filter(bag => {
+    const name = (bag.name || '').toLowerCase()
+    const flavor = (bag.flavor || '').toLowerCase()
+    const inspo = (bag.inspiration || '').toLowerCase()
+    const userFirst = (bag.user?.firstName || '').toLowerCase()
+    const userLast = (bag.user?.lastName || '').toLowerCase()
+    const userId = (bag.user?._id || '').toLowerCase()
+    const bagId = (bag._id || '').toLowerCase()
+    const date = new Date(bag.createdAt).toLocaleDateString('en-GB').toLowerCase()
+    const keyFlavors = (bag.keyFlavours || []).join(' ').toLowerCase()
+    
+    return name.includes(query) ||
+           flavor.includes(query) ||
+           inspo.includes(query) ||
+           userFirst.includes(query) ||
+           userLast.includes(query) ||
+           userId.includes(query) ||
+           bagId.includes(query) ||
+           date.includes(query) ||
+           keyFlavors.includes(query)
+  })
+})
 
 const deleteBag = async (id) => {
   deletingId.value = id
@@ -36,20 +67,40 @@ const deleteBag = async (id) => {
   }
 }
 
+
+const formatUserName = (user) => {
+  if (!user) return 'Anonymous'
+  // Handle case where user is just an ID string
+  if (typeof user === 'string') return 'User #' + user.slice(-4)
+  
+  // Handle object with potential names
+  const first = user.firstName || ''
+  const last = user.lastName || ''
+  const full = `${first} ${last}`.trim()
+  
+  return full || 'Anonymous'
+}
+
 onMounted(fetchBags)
 </script>
 
 <template>
   <div class="page-container">
-    <AdminHeader />
-    
-    <main class="content">
-      <div class="page-header">
-        <h1>Submission Moderator</h1>
-        <div class="stats glass-panel">
-          <span>Total Bags: <strong>{{ bags.length }}</strong></span>
+
+    <div class="header"><AdminHeader /></div>
+
+    <div class="page-header">
+      <div class="search-container glass-panel">
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Search by voter, bag ID, or flavor..." 
+            class="search-input"
+          />
         </div>
       </div>
+
+    <main class="content">
 
       <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
@@ -62,10 +113,25 @@ onMounted(fetchBags)
       </div>
 
       <div v-else class="grid-layout">
-        <div v-for="bag in bags" :key="bag._id" class="bag-card glass-panel">
+        <div v-for="bag in filteredBags" :key="bag._id" class="bag-card glass-panel">
+          
+          <!-- 1. Header: Name, User, Date -->
+          <div class="card-header">
+             <div class="header-top">
+                <h3>{{ bag.name || bag.flavor || 'Untitled Flavor' }}</h3>
+                <span class="date">{{ new Date(bag.createdAt).toLocaleDateString('en-GB') }}</span>
+             </div>
+             <div class="user-meta">
+                <span class="author-name">{{ formatUserName(bag.user) }}</span>
+                <div class="id-row" v-if="bag.user?._id">
+                   <span class="id-label">ID:</span> 
+                   <span class="user-id">{{ bag.user._id }}</span>
+                </div>
+             </div>
+          </div>
+
+          <!-- Bag Image/Preview -->
           <div class="bag-image-placeholder">
-             <!-- If the API returns an image URL, we'd use it here. 
-                  For now using a stylized placeholder or checking user structure -->
              <div class="bag-preview-container">
                <img 
                  v-if="bag.snapshot || bag.image" 
@@ -84,15 +150,29 @@ onMounted(fetchBags)
           </div>
           
           <div class="bag-info">
-            <h3>{{ bag.name || bag.flavor || 'Untitled Flavor' }}</h3>
-            <div class="meta">
-              <span>By: {{ bag.user?.firstName || (typeof bag.user === 'string' ? 'User #' + bag.user.slice(-4) : 'Anonymous') }}</span>
-              <span class="date">{{ new Date(bag.createdAt).toLocaleDateString() }}</span>
+            <!-- 2. Flavors: Horizontal Scroll -->
+            <div class="flavors-container">
+               <strong>Key Flavours</strong>
+               <div class="flavor-pills">
+                 <span v-for="flavor in bag.keyFlavours" :key="flavor" class="flavor-pill">
+                   {{ flavor }}
+                 </span>
+                 <span v-if="!bag.keyFlavours?.length" class="no-flavor">No flavours added</span>
+               </div>
             </div>
             
+            <!-- 3. Inspiration: Scrollable Box -->
+            <div class="inspiration-box" v-if="bag.inspiration">
+              <strong>Inspiration</strong>
+              <div class="inspiration-content">
+                <p>{{ bag.inspiration }}</p>
+              </div>
+            </div>
+
+            <!-- 4. Action: Delete -->
             <button 
               @click="deleteBag(bag._id)" 
-              class="btn-danger w-full"
+              class="btn-delete"
               :disabled="deletingId === bag._id"
             >
               {{ deletingId === bag._id ? 'Deleting...' : 'Delete Submission' }}
@@ -106,21 +186,59 @@ onMounted(fetchBags)
 
 <style scoped>
 .page-container {
-  max-width: 1200px;
+  height: 100vh; /* Strict viewport height */
+  width: 100%;
+  padding: 2rem;
   margin: 0 auto;
-  padding: 1rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr); /* 3 rows: Header, Search, Content */
+  gap: 1rem;
+  justify-items: center;
+  align-items: start; /* Align to top */
+}
+
+.header {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.content {
+  width: 80dvw;
+  height: 100%; /* Fill the 1fr grid track */
+  min-height: 0; /* Crucial for nested flex/grid scrolling */
+  overflow: hidden; /* Parent doesn't scroll */
+  display: flex;
+  flex-direction: column;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: .5rem;
+  flex-wrap: wrap; /* responsive wrap */
+  gap: 1rem;
 }
 
-.page-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
+.search-container {
+  flex: 1;
+  width: 85dvw;
+  padding: 0.5rem;
+}
+
+.search-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--lays-white);
+  font-size: 1rem;
+  padding: 0.5rem;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: rgba(255,255,255,0.4);
 }
 
 .stats {
@@ -132,48 +250,95 @@ onMounted(fetchBags)
   color: var(--lays-yellow);
 }
 
+/* Grid Layout */
 .grid-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, 400px); /* Fixed 400px width */
+  grid-auto-rows: max-content; /* Ensure rows fit content height */
+  gap: 2rem;
+  width: 100%;
+  justify-content: center;
+  align-content: start; /* Pack rows at the start */
+  height: 100%;
+  overflow-y: auto; 
+  padding-bottom: 2rem;
 }
 
 .bag-card {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  transition: transform 0.2s;
+  background: rgba(20, 20, 20, 0.6);
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
-.bag-card:hover {
-  transform: translateY(-4px);
+/* Header Section */
+.card-header {
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.header-top h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--lays-white);
+  margin: 0;
+  line-height: 1.1;
+  text-align: left; /* Align card title left */
+}
+
+.date {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  margin-left: 1rem;
+  padding-top: 0.3rem;
+  opacity: 0.7;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align User info left */
+  gap: 0.2rem;
+}
+
+.author-name {
+  color: var(--lays-yellow);
+  font-weight: 700;
+  font-size: 1.1rem; /* Bigger user name */
+}
+
+.id-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem; /* Smaller ID info */
+  color: var(--text-secondary); /* Better contrast handled by lighter text color on dark bg */
+}
+
+.id-label {
+  opacity: 0.6;
+}
+
+.user-id {
+  font-family: monospace;
+  color: rgba(255, 255, 255, 0.8); /* Lighter for readability/contrast */
+}
+
+/* Image */
 .bag-image-placeholder {
   height: 200px;
   background: rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.bag-preview {
-  width: 120px;
-  height: 160px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  overflow: hidden;
-}
-
-.preview-text {
-  color: #000; /* Assuming light bags */
-  font-weight: 800;
-  font-size: 0.9rem;
-  text-transform: uppercase;
 }
 
 .bag-preview-container {
@@ -187,28 +352,132 @@ onMounted(fetchBags)
 .bag-image {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* ensure user sees whole bag even if small aspect ratio diff */
-  padding: 1rem;
+  object-fit: contain;
 }
 
+.bag-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-text {
+  color: #000;
+  font-weight: 800;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+}
+
+/* Info Body */
 .bag-info {
   padding: 1.25rem;
-}
-
-.bag-info h3 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.meta {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Flavors */
+.flavors-container strong {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-secondary);
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  text-align: left; /* Align label left */
+}
+
+.flavor-pills {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start; /* Explicitly align left */
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lays-yellow) transparent;
+}
+
+.flavor-pills::-webkit-scrollbar {
+  height: 4px;
+}
+
+.flavor-pills::-webkit-scrollbar-thumb {
+  background-color: var(--lays-yellow);
+  border-radius: 2px;
+}
+
+.flavor-pill {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  background-color: var(--lays-yellow);
+  color: #000;
+  padding: 0.1rem 0.6rem;
+  border-radius: 100px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.no-flavor {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Inspiration */
+.inspiration-box {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.inspiration-box strong {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-align: left; /* Explicitly align left */
+}
+
+.inspiration-content {
+  height: 150px; /* Fixed height for alignment */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  padding-right: 0.5rem;
+  text-align: left; /* Explicitly align container content left */
+}
+
+.inspiration-content p {
+  color: var(--text-primary);
+  line-height: 1.5;
+  font-size: 0.95rem;
+  margin: 0;
+  text-align: left; /* Explicitly align text left */
+}
+
+/* Action Button */
+.btn-delete {
+  margin-top: auto;
+  width: 100%;
+  padding: 12px;
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover {
+  background: var(--danger);
+  color: #fff;
 }
 
 .loading-state, .error-state {
@@ -230,7 +499,4 @@ onMounted(fetchBags)
   to { transform: rotate(360deg); }
 }
 
-.w-full {
-  width: 100%;
-}
 </style>

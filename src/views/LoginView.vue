@@ -61,11 +61,11 @@ const handleSubmit = async () => {
 <style scoped>
 .login-wrapper {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
-  padding: 1rem;
 }
 
 .login-card {

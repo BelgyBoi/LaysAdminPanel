@@ -10,18 +10,20 @@ const isActive = (path) => router.currentRoute.value.path === path
 
 <template>
   <header class="admin-header glass-panel">
-    <div class="logo-section">
-      <span class="logo-text">Lay's <span class="highlight">Admin</span></span>
+    <div class="left">
+      <div class="logo-section">
+        <span class="logo-text">Lay's <span class="highlight">Admin</span></span>
+      </div>
+      
+      <nav class="nav-links">
+        <RouterLink to="/admin/dashboard" class="nav-item" :class="{ active: isActive('/admin/dashboard') }">
+          Dashboard
+        </RouterLink>
+        <RouterLink to="/admin/vote" class="nav-item" :class="{ active: isActive('/admin/vote') }">
+          Votes
+        </RouterLink>
+      </nav>
     </div>
-
-    <nav class="nav-links">
-      <RouterLink to="/admin/dashboard" class="nav-item" :class="{ active: isActive('/admin/dashboard') }">
-        Dashboard
-      </RouterLink>
-      <RouterLink to="/admin/vote" class="nav-item" :class="{ active: isActive('/admin/vote') }">
-        Votes
-      </RouterLink>
-    </nav>
 
     <div class="user-section">
       <span class="username" v-if="user">{{ user.firstName }}</span>
@@ -36,11 +38,16 @@ const isActive = (path) => router.currentRoute.value.path === path
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  margin-bottom: 2rem;
   border-radius: var(--radius-lg);
   position: sticky;
   top: 1rem;
   z-index: 100;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
 }
 
 .logo-text {
@@ -55,7 +62,7 @@ const isActive = (path) => router.currentRoute.value.path === path
 
 .nav-links {
   display: flex;
-  gap: 2rem;
+  gap: .5rem;
 }
 
 .nav-item {

@@ -5,6 +5,7 @@ import AdminHeader from '../components/AdminHeader.vue'
 
 const { api } = useAuth()
 const votes = ref([])
+const searchQuery = ref('')
 const isLoading = ref(true)
 const error = ref(null)
 
@@ -22,8 +23,29 @@ const fetchVotes = async () => {
 }
 
 // Simple computed details for display
-const sortedVotes = computed(() => {
-  return [...votes.value].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+const filteredVotes = computed(() => {
+  let list = [...votes.value]
+  
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    list = list.filter(vote => {
+      const date = new Date(vote.createdAt).toLocaleDateString('en-GB').toLowerCase()
+      const voterFirst = (vote.user?.firstName || '').toLowerCase()
+      const voterLast = (vote.user?.lastName || '').toLowerCase()
+      const voterEmail = (vote.user?.email || '').toLowerCase()
+      const bagId = (vote.bag?._id || '').toLowerCase()
+      const bagName = (vote.bag?.name || vote.bag?.flavor || '').toLowerCase()
+      
+      return date.includes(query) ||
+             voterFirst.includes(query) ||
+             voterLast.includes(query) ||
+             voterEmail.includes(query) ||
+             bagId.includes(query) ||
+             bagName.includes(query)
+    })
+  }
+  
+  return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 })
 
 const totalVotes = computed(() => votes.value.length)
@@ -37,20 +59,23 @@ onMounted(fetchVotes)
 
 <template>
   <div class="page-container">
-    <AdminHeader />
+    <div class="header"><AdminHeader /></div>
     
-    <main class="content">
-      <div class="page-header">
-        <h1>Voting Dashboard</h1>
-        <div class="stats-group">
-          <div class="stats glass-panel">
-             <span>Total Votes: <strong>{{ totalVotes }}</strong></span>
-          </div>
-          <div class="stats glass-panel">
-             <span>Unique Voters: <strong>{{ uniqueVoters }}</strong></span>
-          </div>
-        </div>
+    <div class="page-header">
+      <div class="search-container glass-panel">
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Search by voter, bag ID, or flavor..." 
+          class="search-input"
+        />
       </div>
+      <div class="stats-group">
+        <!-- Stats moved here if needed or kept below -->
+      </div>
+    </div>
+
+    <main class="content">
 
       <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
@@ -74,8 +99,8 @@ onMounted(fetchVotes)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="vote in sortedVotes" :key="vote._id">
-              <td>{{ new Date(vote.createdAt).toLocaleDateString() }} {{ new Date(vote.createdAt).toLocaleTimeString() }}</td>
+            <tr v-for="vote in filteredVotes" :key="vote._id">
+              <td>{{ new Date(vote.createdAt).toLocaleDateString('en-GB') }} {{ new Date(vote.createdAt).toLocaleTimeString() }}</td>
               <td>
                 <div class="voter-info">
                    <span class="voter-name">{{ vote.user?.firstName }} {{ vote.user?.lastName || '' }}</span>
@@ -106,21 +131,65 @@ onMounted(fetchVotes)
 
 <style scoped>
 .page-container {
-  max-width: 1200px;
+  height: 100vh;
+  width: 100%;
+  padding: 2rem;
   margin: 0 auto;
-  padding: 1rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr); /* Header, Search, Content */
+  gap: 1rem;
+  overflow: hidden;
+  justify-items: center;
+  align-items: start;
+}
+
+.header {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.content {
+  width: 80dvw;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  width: 85dvw;
 }
 
 .page-header h1 {
   font-size: 2rem;
   font-weight: 700;
+}
+
+/* Search Styles matching ModeratorView */
+.search-container {
+  flex: 1;
+  min-width: 300px;
+  padding: 0.5rem;
+  margin-right: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--lays-white);
+  font-size: 1rem;
+  padding: 0.5rem;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: rgba(255,255,255,0.4);
 }
 
 .stats-group {
@@ -138,8 +207,10 @@ onMounted(fetchVotes)
 }
 
 .table-container {
-  overflow-x: auto;
+  overflow-y: auto; /* Vertical scroll for table */
+  overflow-x: auto; /* Horizontal scroll if table is wide */
   padding: 0;
+  /* height: 100%; */
 }
 
 table {
@@ -159,7 +230,11 @@ th {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: rgba(255, 255, 255, 0.02);
+  background: #1a1a1a; /* Opaque background to hide scrolling content */
+  position: sticky; /* Make headers stationary */
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.1); /* Optional separator */
 }
 
 tr:last-child td {
